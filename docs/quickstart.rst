@@ -1,5 +1,3 @@
-.. _quickstart:
-
 Quickstart
 ==========
 
@@ -15,13 +13,12 @@ A minimal Flask application looks something like this:
 .. code-block:: python
 
     from flask import Flask
-    from markupsafe import escape
 
     app = Flask(__name__)
 
     @app.route("/")
     def hello_world():
-        return f"<p>Hello, {escape(name)}!</p>"
+        return "<p>Hello, World!</p>"
 
 So what did that code do?
 
@@ -37,14 +34,6 @@ So what did that code do?
 4.  The function returns the message we want to display in the user's
     browser. The default content type is HTML, so HTML in the string
     will be rendered by the browser.
-
-.. note:: HTML escaping
-
-    When returning HTML (the default response type in Flask), any user
-    input rendered in the output must be escaped to protect from
-    injection attacks. HTML templates in Jinja, introduced later, will
-    do this automatically. :func:`~markupsafe.escape`, shown above, can
-    be used manually. It's omitted for brevity in the examples below.
 
 Save it as :file:`hello.py` or something similar. Make sure to not call
 your application :file:`flask.py` because this would conflict with Flask
@@ -70,9 +59,9 @@ And on PowerShell::
 
     PS C:\path\to\app> $env:FLASK_APP = "hello.py"
 
-This launches a very simple builtin server, which is good enough for testing
-but probably not what you want to use in production. For deployment options see
-:ref:`deployment`.
+This launches a very simple builtin server, which is good enough for
+testing but probably not what you want to use in production. For
+deployment options see :doc:`deploying/index`.
 
 Now head over to http://127.0.0.1:5000/, and you should see your hello
 world greeting.
@@ -127,7 +116,7 @@ The most common reason is a typo or because you did not actually create an
 Debug Mode
 ----------
 
-(Want to just log errors and stack traces? See :ref:`application-errors`)
+(Want to just log errors and stack traces? See :doc:`errorhandling`)
 
 The :command:`flask` script is nice to start a local development server, but
 you would have to restart it manually after each change to your code.
@@ -175,6 +164,34 @@ documentation`_.
 .. _Werkzeug documentation: https://werkzeug.palletsprojects.com/debug/#using-the-debugger
 
 Have another debugger in mind? See :ref:`working-with-debuggers`.
+
+
+HTML Escaping
+-------------
+
+When returning HTML (the default response type in Flask), any
+user-provided values rendered in the output must be escaped to protect
+from injection attacks. HTML templates rendered with Jinja, introduced
+later, will do this automatically.
+
+:func:`~markupsafe.escape`, shown here, can be used manually. It is
+omitted in most examples for brevity, but you should always be aware of
+how you're using untrusted data.
+
+.. code-block:: python
+
+    from markupsafe import escape
+
+    @app.route("/<name>")
+    def hello(name):
+        return f"Hello, {escape(name)}!"
+
+If a user managed to submit the name ``<script>alert("bad")</script>``,
+escaping causes it to be rendered as text, rather than running the
+script in the user's browser.
+
+``<name>`` in the route captures a value from the URL and passes it to
+the view function. These variable rules are explained below.
 
 
 Routing
@@ -232,6 +249,7 @@ Converter types:
 ``uuid``   accepts UUID strings
 ========== ==========================================
 
+
 Unique URLs / Redirection Behavior
 ``````````````````````````````````
 
@@ -273,8 +291,7 @@ Why would you want to build URLs using the URL reversing function
 1. Reversing is often more descriptive than hard-coding the URLs.
 2. You can change your URLs in one go instead of needing to remember to
    manually change hard-coded URLs.
-3. URL building handles escaping of special characters and Unicode data
-   transparently.
+3. URL building handles escaping of special characters transparently.
 4. The generated paths are always absolute, avoiding unexpected behavior
    of relative paths in browsers.
 5. If your application is placed outside the URL root, for example, in
@@ -413,9 +430,9 @@ Inside templates you also have access to the :class:`~flask.request`,
 as well as the :func:`~flask.get_flashed_messages` function.
 
 Templates are especially useful if inheritance is used.  If you want to
-know how that works, head over to the :ref:`template-inheritance` pattern
-documentation.  Basically template inheritance makes it possible to keep
-certain elements on each page (like header, navigation and footer).
+know how that works, see :doc:`patterns/templateinheritance`. Basically
+template inheritance makes it possible to keep certain elements on each
+page (like header, navigation and footer).
 
 Automatic escaping is enabled, so if ``name`` contains HTML it will be escaped
 automatically.  If you can trust a variable and you know that it will be
@@ -428,11 +445,11 @@ Here is a basic introduction to how the :class:`~markupsafe.Markup` class works:
 
     >>> from markupsafe import Markup
     >>> Markup('<strong>Hello %s!</strong>') % '<blink>hacker</blink>'
-    Markup(u'<strong>Hello &lt;blink&gt;hacker&lt;/blink&gt;!</strong>')
+    Markup('<strong>Hello &lt;blink&gt;hacker&lt;/blink&gt;!</strong>')
     >>> Markup.escape('<blink>hacker</blink>')
-    Markup(u'&lt;blink&gt;hacker&lt;/blink&gt;')
+    Markup('&lt;blink&gt;hacker&lt;/blink&gt;')
     >>> Markup('<em>Marked up</em> &raquo; HTML').striptags()
-    u'Marked up \xbb HTML'
+    'Marked up \xbb HTML'
 
 .. versionchanged:: 0.5
 
@@ -442,9 +459,8 @@ Here is a basic introduction to how the :class:`~markupsafe.Markup` class works:
    autoescaping disabled.
 
 .. [#] Unsure what that :class:`~flask.g` object is? It's something in which
-   you can store information for your own needs, check the documentation of
-   that object (:class:`~flask.g`) and the :ref:`sqlite3` for more
-   information.
+   you can store information for your own needs. See the documentation
+   for :class:`flask.g` and :doc:`patterns/sqlite3`.
 
 
 Accessing Request Data
@@ -590,11 +606,11 @@ Werkzeug provides for you::
     @app.route('/upload', methods=['GET', 'POST'])
     def upload_file():
         if request.method == 'POST':
-            f = request.files['the_file']
-            f.save('/var/www/uploads/' + secure_filename(f.filename))
+            file = request.files['the_file']
+            file.save(f"/var/www/uploads/{secure_filename(f.filename)}")
         ...
 
-For some better examples, checkout the :ref:`uploading-files` pattern.
+For some better examples, see :doc:`patterns/fileuploads`.
 
 Cookies
 ```````
@@ -634,7 +650,7 @@ the :meth:`~flask.make_response` function and then modify it.
 
 Sometimes you might want to set a cookie at a point where the response
 object does not exist yet.  This is possible by utilizing the
-:ref:`deferred-callbacks` pattern.
+:doc:`patterns/deferredcallbacks` pattern.
 
 For this also see :ref:`about-responses`.
 
@@ -674,7 +690,7 @@ Note the ``404`` after the :func:`~flask.render_template` call.  This
 tells Flask that the status code of that page should be 404 which means
 not found.  By default 200 is assumed which translates to: all went well.
 
-See :ref:`error-handlers` for more details.
+See :doc:`errorhandling` for more details.
 
 .. _about-responses:
 
@@ -838,8 +854,8 @@ template to expose the message.
 
 To flash a message use the :func:`~flask.flash` method, to get hold of the
 messages you can use :func:`~flask.get_flashed_messages` which is also
-available in the templates.  Check out the :ref:`message-flashing-pattern`
-for a full example.
+available in the templates. See :doc:`patterns/flashing` for a full
+example.
 
 Logging
 -------
@@ -868,7 +884,8 @@ The attached :attr:`~flask.Flask.logger` is a standard logging
 :class:`~logging.Logger`, so head over to the official :mod:`logging`
 docs for more information.
 
-Read more on :ref:`application-errors`.
+See :doc:`errorhandling`.
+
 
 Hooking in WSGI Middleware
 --------------------------
@@ -894,9 +911,9 @@ Extensions are packages that help you accomplish common tasks. For
 example, Flask-SQLAlchemy provides SQLAlchemy support that makes it simple
 and easy to use with Flask.
 
-For more on Flask extensions, have a look at :ref:`extensions`.
+For more on Flask extensions, see :doc:`extensions`.
 
 Deploying to a Web Server
 -------------------------
 
-Ready to deploy your new Flask app? Go to :ref:`deployment`.
+Ready to deploy your new Flask app? See :doc:`deploying/index`.

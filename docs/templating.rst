@@ -1,9 +1,7 @@
-.. _templates:
-
 Templates
 =========
 
-Flask leverages Jinja2 as template engine.  You are obviously free to use
+Flask leverages Jinja2 as its template engine.  You are obviously free to use
 a different template engine, but you still have to install Jinja2 to run
 Flask itself.  This requirement is necessary to enable rich extensions.
 An extension can depend on Jinja2 being present.
@@ -100,7 +98,7 @@ by default:
 Standard Filters
 ----------------
 
-These filters are available in Jinja2 additionally to the filters provided
+Flask provides the following Jinja2 filters in addition to the filters provided
 by Jinja2 itself:
 
 .. function:: tojson
@@ -139,7 +137,7 @@ carry specific meanings in documents on their own you have to replace them
 by so called "entities" if you want to use them for text.  Not doing so
 would not only cause user frustration by the inability to use these
 characters in text, but can also lead to security problems.  (see
-:ref:`xss`)
+:ref:`security-xss`)
 
 Sometimes however you will need to disable autoescaping in templates.
 This can be the case if you want to explicitly inject HTML into pages, for
@@ -222,8 +220,8 @@ functions)::
 
     @app.context_processor
     def utility_processor():
-        def format_price(amount, currency=u'€'):
-            return u'{0:.2f}{1}'.format(amount, currency)
+        def format_price(amount, currency="€"):
+            return f"{amount:.2f}{currency}"
         return dict(format_price=format_price)
 
 The context processor above makes the `format_price` function available to all

@@ -1,8 +1,11 @@
+import gc
 import re
 import sys
 import time
 import uuid
+import weakref
 from datetime import datetime
+from platform import python_implementation
 from threading import Thread
 
 import pytest
@@ -14,6 +17,12 @@ from werkzeug.http import parse_date
 from werkzeug.routing import BuildError
 
 import flask
+
+
+require_cpython_gc = pytest.mark.skipif(
+    python_implementation() != "CPython",
+    reason="Requires CPython GC behavior",
+)
 
 
 def test_options_work(app, client):
@@ -37,6 +46,23 @@ def test_options_on_multiple_rules(app, client):
 
     rv = client.open("/", method="OPTIONS")
     assert sorted(rv.allow) == ["GET", "HEAD", "OPTIONS", "POST", "PUT"]
+
+
+@pytest.mark.parametrize("method", ["get", "post", "put", "delete", "patch"])
+def test_method_route(app, client, method):
+    method_route = getattr(app, method)
+    client_method = getattr(client, method)
+
+    @method_route("/")
+    def hello():
+        return "Hello"
+
+    assert client_method("/").data == b"Hello"
+
+
+def test_method_route_no_methods(app):
+    with pytest.raises(TypeError):
+        app.get("/", methods=["GET", "POST"])
 
 
 def test_provide_automatic_options_attr():
@@ -311,6 +337,19 @@ def test_session_using_session_settings(app, client):
     assert "path=/" in cookie
     assert "secure" in cookie
     assert "httponly" not in cookie
+    assert "samesite" in cookie
+
+    @app.route("/clear")
+    def clear():
+        flask.session.pop("testing", None)
+        return "Goodbye World"
+
+    rv = client.get("/clear", "http://www.example.com:8080/test/")
+    cookie = rv.headers["set-cookie"].lower()
+    assert "session=;" in cookie
+    assert "domain=.example.com" in cookie
+    assert "path=/" in cookie
+    assert "secure" in cookie
     assert "samesite" in cookie
 
 
@@ -1117,8 +1156,10 @@ def test_response_types(app, client):
     @app.route("/response_headers")
     def from_response_headers():
         return (
-            flask.Response("Hello world", 404, {"X-Foo": "Baz"}),
-            {"X-Foo": "Bar", "X-Bar": "Foo"},
+            flask.Response(
+                "Hello world", 404, {"Content-Type": "text/html", "X-Foo": "Baz"}
+            ),
+            {"Content-Type": "text/plain", "X-Foo": "Bar", "X-Bar": "Foo"},
         )
 
     @app.route("/response_status")
@@ -1155,7 +1196,8 @@ def test_response_types(app, client):
 
     rv = client.get("/response_headers")
     assert rv.data == b"Hello world"
-    assert rv.headers.getlist("X-Foo") == ["Baz", "Bar"]
+    assert rv.content_type == "text/plain"
+    assert rv.headers.getlist("X-Foo") == ["Bar"]
     assert rv.headers["X-Bar"] == "Foo"
     assert rv.status_code == 404
 
@@ -1406,6 +1448,16 @@ def test_static_url_empty_path_default(app):
     rv.close()
 
 
+@pytest.mark.skipif(sys.version_info < (3, 6), reason="requires Python >= 3.6")
+def test_static_folder_with_pathlib_path(app):
+    from pathlib import Path
+
+    app = flask.Flask(__name__, static_folder=Path("static"))
+    rv = app.test_client().open("/static/index.html", method="GET")
+    assert rv.status_code == 200
+    rv.close()
+
+
 def test_static_folder_with_ending_slash():
     app = flask.Flask(__name__, static_folder="static/")
 
@@ -1485,6 +1537,8 @@ def test_server_name_subdomain():
     assert rv.data == b"subdomain"
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_exception_propagation(app, client):
     def apprunner(config_key):
         @app.route("/")
@@ -1957,3 +2011,19 @@ def test_max_cookie_size(app, client, recwarn):
 
     client.get("/")
     assert len(recwarn) == 0
+
+
+@require_cpython_gc
+def test_app_freed_on_zero_refcount():
+    # A Flask instance should not create a reference cycle that prevents CPython
+    # from freeing it when all external references to it are released (see #3761).
+    gc.disable()
+    try:
+        app = flask.Flask(__name__)
+        assert app.view_functions["static"]
+        weak = weakref.ref(app)
+        assert weak() is not None
+        del app
+        assert weak() is None
+    finally:
+        gc.enable()

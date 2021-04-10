@@ -18,6 +18,7 @@ extensions = [
     "sphinxcontrib.log_cabinet",
     "pallets_sphinx_themes",
     "sphinx_issues",
+    "sphinx_tabs.tabs",
 ]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
@@ -26,7 +27,7 @@ intersphinx_mapping = {
     "jinja": ("https://jinja.palletsprojects.com/", None),
     "itsdangerous": ("https://itsdangerous.palletsprojects.com/", None),
     "sqlalchemy": ("https://docs.sqlalchemy.org/", None),
-    "wtforms": ("https://wtforms.readthedocs.io/en/stable/", None),
+    "wtforms": ("https://wtforms.readthedocs.io/", None),
     "blinker": ("https://pythonhosted.org/blinker/", None),
 }
 issues_github_path = "pallets/flask"
@@ -37,11 +38,13 @@ html_theme = "flask"
 html_theme_options = {"index_sidebar_logo": False}
 html_context = {
     "project_links": [
-        ProjectLink("Donate to Pallets", "https://palletsprojects.com/donate"),
-        ProjectLink("Flask Website", "https://palletsprojects.com/p/flask/"),
-        ProjectLink("PyPI releases", "https://pypi.org/project/Flask/"),
+        ProjectLink("Donate", "https://palletsprojects.com/donate"),
+        ProjectLink("PyPI Releases", "https://pypi.org/project/Flask/"),
         ProjectLink("Source Code", "https://github.com/pallets/flask/"),
         ProjectLink("Issue Tracker", "https://github.com/pallets/flask/issues/"),
+        ProjectLink("Website", "https://palletsprojects.com/p/flask/"),
+        ProjectLink("Twitter", "https://twitter.com/PalletsTeam"),
+        ProjectLink("Chat", "https://discord.gg/pallets"),
     ]
 }
 html_sidebars = {

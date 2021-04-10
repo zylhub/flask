@@ -44,20 +44,31 @@ To run the application, use the :command:`flask` command or
 to tell your terminal the application to work with by exporting the
 ``FLASK_APP`` environment variable:
 
-.. code-block:: text
+.. tabs::
 
-    $ export FLASK_APP=hello.py
-    $ flask run
-     * Running on http://127.0.0.1:5000/
+   .. group-tab:: Bash
 
-If you are on Windows, the environment variable syntax depends on command line
-interpreter. On Command Prompt::
+      .. code-block:: text
 
-    C:\path\to\app>set FLASK_APP=hello.py
+         $ export FLASK_APP=hello.py
+         $ flask run
+          * Running on http://127.0.0.1:5000/
 
-And on PowerShell::
+   .. group-tab:: CMD
 
-    PS C:\path\to\app> $env:FLASK_APP = "hello.py"
+      .. code-block:: text
+
+         > set FLASK_APP=hello.py
+         > flask run
+          * Running on http://127.0.0.1:5000/
+
+   .. group-tab:: Powershell
+
+      .. code-block:: text
+
+         > $env:FLASK_APP = "hello.py"
+         > flask run
+          * Running on http://127.0.0.1:5000/
 
 This launches a very simple builtin server, which is good enough for
 testing but probably not what you want to use in production. For
@@ -94,7 +105,7 @@ First of all you need to look at the error message.
 Old Version of Flask
 ````````````````````
 
-Versions of Flask older than 0.11 use to have different ways to start the
+Versions of Flask older than 0.11 used to have different ways to start the
 application.  In short, the :command:`flask` command did not exist, and
 neither did :command:`python -m flask`.  In that case you have two options:
 either upgrade to newer Flask versions or have a look at :doc:`/server`
@@ -111,59 +122,61 @@ application). It will tell you what it tried to import and why it failed.
 The most common reason is a typo or because you did not actually create an
 ``app`` object.
 
-.. _debug-mode:
 
 Debug Mode
 ----------
 
-(Want to just log errors and stack traces? See :doc:`errorhandling`)
-
-The :command:`flask` script is nice to start a local development server, but
-you would have to restart it manually after each change to your code.
-That is not very nice and Flask can do better.  If you enable debug
-support the server will reload itself on code changes, and it will also
-provide you with a helpful debugger if things go wrong.
-
-To enable all development features (including debug mode) you can export
-the ``FLASK_ENV`` environment variable and set it to ``development``
-before running the server::
-
-    $ export FLASK_ENV=development
-    $ flask run
-
-(On Windows you need to use ``set`` instead of ``export``.)
-
-This does the following things:
-
-1.  it activates the debugger
-2.  it activates the automatic reloader
-3.  it enables the debug mode on the Flask application.
-
-You can also control debug mode separately from the environment by
-exporting ``FLASK_DEBUG=1``.
-
-There are more parameters that are explained in :doc:`/server`.
-
-.. admonition:: Attention
-
-   Even though the interactive debugger does not work in forking environments
-   (which makes it nearly impossible to use on production servers), it still
-   allows the execution of arbitrary code. This makes it a major security risk
-   and therefore it **must never be used on production machines**.
-
-Screenshot of the debugger in action:
+The ``flask run`` command can do more than just start the development
+server. By enabling debug mode, the server will automatically reload if
+code changes, and will show an interactive debugger in the browser if an
+error occurs during a request.
 
 .. image:: _static/debugger.png
-   :align: center
-   :class: screenshot
-   :alt: screenshot of debugger in action
+    :align: center
+    :class: screenshot
+    :alt: The interactive debugger in action.
 
-More information on using the debugger can be found in the `Werkzeug
-documentation`_.
+.. warning::
 
-.. _Werkzeug documentation: https://werkzeug.palletsprojects.com/debug/#using-the-debugger
+    The debugger allows executing arbitrary Python code from the
+    browser. It is protected by a pin, but still represents a major
+    security risk. Do not run the development server or debugger in a
+    production environment.
 
-Have another debugger in mind? See :ref:`working-with-debuggers`.
+To enable all development features, set the ``FLASK_ENV`` environment
+variable to ``development`` before calling ``flask run``.
+
+.. tabs::
+
+   .. group-tab:: Bash
+
+      .. code-block:: text
+
+         $ export FLASK_ENV=development
+         $ flask run
+
+   .. group-tab:: CMD
+
+      .. code-block:: text
+
+         > set FLASK_ENV=development
+         > flask run
+
+   .. group-tab:: Powershell
+
+      .. code-block:: text
+
+         > $env:FLASK_ENV = "development"
+         > flask run
+
+See also:
+
+-   :doc:`/server` and :doc:`/cli` for information about running in
+    development mode.
+-   :doc:`/debugging` for information about using the built-in debugger
+    and other debuggers.
+-   :doc:`/logging` and :doc:`/errorhandling` to log errors and display
+    nice error pages.
 
 
 HTML Escaping
@@ -265,14 +278,14 @@ The following two rules differ in their use of a trailing slash. ::
 
 The canonical URL for the ``projects`` endpoint has a trailing slash.
 It's similar to a folder in a file system. If you access the URL without
-a trailing slash, Flask redirects you to the canonical URL with the
-trailing slash.
+a trailing slash (``/projects``), Flask redirects you to the canonical URL
+with the trailing slash (``/projects/``).
 
 The canonical URL for the ``about`` endpoint does not have a trailing
 slash. It's similar to the pathname of a file. Accessing the URL with a
-trailing slash produces a 404 "Not Found" error. This helps keep URLs
-unique for these resources, which helps search engines avoid indexing
-the same page twice.
+trailing slash (``/about/``) produces a 404 "Not Found" error. This helps
+keep URLs unique for these resources, which helps search engines avoid
+indexing the same page twice.
 
 
 .. _url-building:

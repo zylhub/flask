@@ -32,8 +32,8 @@ distribution file.
     $ python setup.py bdist_wheel
 
 You can find the file in ``dist/flaskr-1.0.0-py3-none-any.whl``. The
-file name is the name of the project, the version, and some tags about
-the file can install.
+file name is in the format of {project name}-{version}-{python tag}
+-{abi tag}-{platform tag}.
 
 Copy this file to another machine,
 :ref:`set up a new virtualenv <install-create-env>`, then install the
@@ -48,10 +48,28 @@ Pip will install your project along with its dependencies.
 Since this is a different machine, you need to run ``init-db`` again to
 create the database in the instance folder.
 
-.. code-block:: none
+.. tabs::
 
-    $ export FLASK_APP=flaskr
-    $ flask init-db
+   .. group-tab:: Bash
+
+      .. code-block:: text
+
+         $ export FLASK_APP=flaskr
+         $ flask init-db
+
+   .. group-tab:: CMD
+
+      .. code-block:: text
+
+         > set FLASK_APP=flaskr
+         > flask init-db
+
+   .. group-tab:: Powershell
+
+      .. code-block:: text
+
+         > $env:FLASK_APP = "flaskr"
+         > flask init-db
 
 When Flask detects that it's installed (not in editable mode), it uses
 a different directory for the instance folder. You can find it at

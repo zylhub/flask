@@ -119,7 +119,7 @@ Notice that our test functions begin with the word `test`; this allows
 By using ``client.get`` we can send an HTTP ``GET`` request to the
 application with the given path.  The return value will be a
 :class:`~flask.Flask.response_class` object. We can now use the
-:attr:`~werkzeug.wrappers.BaseResponse.data` attribute to inspect
+:attr:`~werkzeug.wrappers.Response.data` attribute to inspect
 the return value (as string) from the application.
 In this case, we ensure that ``'No entries here so far'``
 is part of the output.
@@ -316,7 +316,7 @@ And then to use it::
         with app.test_client() as c:
             resp = c.get('/users/me')
             data = json.loads(resp.data)
-            self.assert_equal(data['username'], my_user.username)
+            assert data['username'] == my_user.username
 
 
 Keeping the Context Around

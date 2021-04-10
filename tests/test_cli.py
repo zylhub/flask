@@ -44,7 +44,6 @@ def test_cli_name(test_apps):
 
 
 def test_find_best_app(test_apps):
-    """Test if `find_best_app` behaves as expected with different combinations of input."""  # noqa: B950
     script_info = ScriptInfo()
 
     class Module:
@@ -240,7 +239,7 @@ def test_locate_app_raises(test_apps, iname, aname):
         locate_app(info, iname, aname)
 
 
-def test_locate_app_suppress_raise():
+def test_locate_app_suppress_raise(test_apps):
     info = ScriptInfo()
     app = locate_app(info, "notanapp.py", None, raise_if_not_found=False)
     assert app is None
@@ -271,7 +270,6 @@ def test_get_version(test_apps, capsys):
 
 
 def test_scriptinfo(test_apps, monkeypatch):
-    """Test of ScriptInfo."""
     obj = ScriptInfo(app_import_path="cliapp.app:testapp")
     app = obj.load_app()
     assert app.name == "testapp"
@@ -321,8 +319,6 @@ def test_scriptinfo(test_apps, monkeypatch):
 
 
 def test_with_appcontext(runner):
-    """Test of with_appcontext."""
-
     @click.command()
     @with_appcontext
     def testcmd():
@@ -336,8 +332,6 @@ def test_with_appcontext(runner):
 
 
 def test_appgroup(runner):
-    """Test of with_appcontext."""
-
     @click.group(cls=AppGroup)
     def cli():
         pass
@@ -366,8 +360,6 @@ def test_appgroup(runner):
 
 
 def test_flaskgroup(runner):
-    """Test FlaskGroup."""
-
     def create_app():
         return Flask("flaskgroup")
 
@@ -386,8 +378,6 @@ def test_flaskgroup(runner):
 
 @pytest.mark.parametrize("set_debug_flag", (True, False))
 def test_flaskgroup_debug(runner, set_debug_flag):
-    """Test FlaskGroup debug flag behavior."""
-
     def create_app():
         app = Flask("flaskgroup")
         app.debug = True
@@ -406,21 +396,36 @@ def test_flaskgroup_debug(runner, set_debug_flag):
     assert result.output == f"{not set_debug_flag}\n"
 
 
-def test_print_exceptions(runner):
-    """Print the stacktrace if the CLI."""
+def test_no_command_echo_loading_error():
+    from flask.cli import cli
 
-    def create_app():
-        raise Exception("oh no")
-        return Flask("flaskgroup")
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(cli, ["missing"])
+    assert result.exit_code == 2
+    assert "FLASK_APP" in result.stderr
+    assert "Usage:" in result.stderr
 
-    @click.group(cls=FlaskGroup, create_app=create_app)
-    def cli(**params):
-        pass
 
+def test_help_echo_loading_error():
+    from flask.cli import cli
+
+    runner = CliRunner(mix_stderr=False)
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "Exception: oh no" in result.output
-    assert "Traceback" in result.output
+    assert "FLASK_APP" in result.stderr
+    assert "Usage:" in result.stdout
+
+
+def test_help_echo_exception():
+    def create_app():
+        raise Exception("oh no")
+
+    cli = FlaskGroup(create_app=create_app)
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    assert "Exception: oh no" in result.stderr
+    assert "Usage:" in result.stdout
 
 
 class TestRoutes:
@@ -500,11 +505,11 @@ need_dotenv = pytest.mark.skipif(dotenv is None, reason="dotenv is not installed
 @need_dotenv
 def test_load_dotenv(monkeypatch):
     # can't use monkeypatch.delitem since the keys don't exist yet
-    for item in ("FOO", "BAR", "SPAM"):
+    for item in ("FOO", "BAR", "SPAM", "HAM"):
         monkeypatch._setitem.append((os.environ, item, notset))
 
     monkeypatch.setenv("EGGS", "3")
-    monkeypatch.chdir(os.path.join(test_path, "cliapp", "inner1"))
+    monkeypatch.chdir(test_path)
     assert load_dotenv()
     assert os.getcwd() == test_path
     # .flaskenv doesn't overwrite .env
@@ -515,7 +520,8 @@ def test_load_dotenv(monkeypatch):
     assert os.environ["SPAM"] == "1"
     # set manually, files don't overwrite
     assert os.environ["EGGS"] == "3"
-
+    # test env file encoding
+    assert os.environ["HAM"] == "火腿"
     # Non existent file should not load
     assert not load_dotenv("non-existent-file")
 

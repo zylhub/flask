@@ -242,8 +242,9 @@ you can use relative redirects by prefixing the endpoint with a dot only::
 This will link to ``admin.index`` for instance in case the current request
 was dispatched to any other admin blueprint endpoint.
 
-Error Handlers
---------------
+
+Blueprint Error Handlers
+------------------------
 
 Blueprints support the ``errorhandler`` decorator just like the :class:`Flask`
 application object, so it is easy to make Blueprint-specific custom error
@@ -269,8 +270,8 @@ at the application level using the ``request`` proxy object::
     @app.errorhandler(405)
     def _handle_api_error(ex):
         if request.path.startswith('/api/'):
-            return jsonify_error(ex)
+            return jsonify(error=str(ex)), ex.code
         else:
             return ex
 
-More information on error handling see :doc:`/patterns/errorpages`.
+See :doc:`/errorhandling`.

@@ -12,6 +12,8 @@ Unreleased
 -   Passing ``script_info`` to app factory functions is deprecated. This
     was not portable outside the ``flask`` command. Use
     ``click.get_current_context().obj`` if it's needed. :issue:`3552`
+-   The CLI shows better error messages when the app failed to load
+    when looking up commands. :issue:`2741`
 -   Add :meth:`sessions.SessionInterface.get_cookie_name` to allow
     setting the session cookie name dynamically. :pr:`3369`
 -   Add :meth:`Config.from_file` to load config using arbitrary file
@@ -27,6 +29,46 @@ Unreleased
     instead of PyOpenSSL. :pr:`3492`
 -   When specifying a factory function with ``FLASK_APP``, keyword
     argument can be passed. :issue:`3553`
+-   When loading a ``.env`` or ``.flaskenv`` file, the current working
+    directory is no longer changed to the location of the file.
+    :pr:`3560`
+-   When returning a ``(response, headers)`` tuple from a view, the
+    headers replace rather than extend existing headers on the response.
+    For example, this allows setting the ``Content-Type`` for
+    ``jsonify()``. Use ``response.headers.extend()`` if extending is
+    desired. :issue:`3628`
+-   The ``Scaffold`` class provides a common API for the ``Flask`` and
+    ``Blueprint`` classes. ``Blueprint`` information is stored in
+    attributes just like ``Flask``, rather than opaque lambda functions.
+    This is intended to improve consistency and maintainability.
+    :issue:`3215`
+-   Include ``samesite`` and ``secure`` options when removing the
+    session cookie. :pr:`3726`
+-   Support passing a ``pathlib.Path`` to ``static_folder``. :pr:`3579`
+-   ``send_file`` and ``send_from_directory`` are wrappers around the
+    implementations in ``werkzeug.utils``. :pr:`3828`
+-   Some ``send_file`` parameters have been renamed, the old names are
+    deprecated. ``attachment_filename`` is renamed to ``download_name``.
+    ``cache_timeout`` is renamed to ``max_age``. ``add_etags`` is
+    renamed to ``etag``. :pr:`3828, 3883`
+-   ``send_file`` passes ``download_name`` even if
+    ``as_attachment=False`` by using ``Content-Disposition: inline``.
+    :pr:`3828`
+-   ``send_file`` sets ``conditional=True`` and ``max_age=None`` by
+    default. ``Cache-Control`` is set to ``no-cache`` if ``max_age`` is
+    not set, otherwise ``public``. This tells browsers to validate
+    conditional requests instead of using a timed cache. :pr:`3828`
+-   ``helpers.safe_join`` is deprecated. Use
+    ``werkzeug.utils.safe_join`` instead. :pr:`3828`
+-   The request context does route matching before opening the session.
+    This could allow a session interface to change behavior based on
+    ``request.endpoint``. :issue:`3776`
+-   Use Jinja's implementation of the ``|tojson`` filter. :issue:`3881`
+-   Add route decorators for common HTTP methods. For example,
+    ``@app.post("/login")`` is a shortcut for
+    ``@app.route("/login", methods=["POST"])``. :pr:`3907`
+-   Support async views, error handlers, before and after request, and
+    teardown functions. :pr:`3412`
 
 
 Version 1.1.2

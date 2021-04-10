@@ -44,6 +44,7 @@ instructions for web development with Flask.
    templating
    testing
    errorhandling
+   debugging
    logging
    config
    signals
@@ -58,6 +59,7 @@ instructions for web development with Flask.
    patterns/index
    deploying/index
    becomingbig
+   async-await
 
 
 API Reference
@@ -84,6 +86,6 @@ Design notes, legal information and changelog are here for the interested.
    htmlfaq
    security
    extensiondev
-   changelog
-   license
    contributing
+   license
+   changes

@@ -2,8 +2,11 @@ import importlib.util
 import os
 import pkgutil
 import sys
+import typing as t
 from collections import defaultdict
 from functools import update_wrapper
+from json import JSONDecoder
+from json import JSONEncoder
 
 from jinja2 import FileSystemLoader
 from werkzeug.exceptions import default_exceptions
@@ -11,20 +14,32 @@ from werkzeug.exceptions import HTTPException
 
 from .cli import AppGroup
 from .globals import current_app
+from .helpers import get_root_path
 from .helpers import locked_cached_property
 from .helpers import send_from_directory
 from .templating import _default_template_ctx_processor
+from .typing import AfterRequestCallable
+from .typing import AppOrBlueprintKey
+from .typing import BeforeRequestCallable
+from .typing import ErrorHandlerCallable
+from .typing import TeardownCallable
+from .typing import TemplateContextProcessorCallable
+from .typing import URLDefaultCallable
+from .typing import URLValuePreprocessorCallable
+
+if t.TYPE_CHECKING:
+    from .wrappers import Response
 
 # a singleton sentinel value for parameter defaults
 _sentinel = object()
 
 
-def setupmethod(f):
+def setupmethod(f: t.Callable) -> t.Callable:
     """Wraps a method so that it performs a check in debug mode if the
     first request was already handled.
     """
 
-    def wrapper_func(self, *args, **kwargs):
+    def wrapper_func(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         if self._is_setup_finished():
             raise AssertionError(
                 "A setup function was called after the first request "
@@ -56,28 +71,28 @@ class Scaffold:
         are relative to. Typically not set, it is discovered based on
         the ``import_name``.
 
-    .. versionadded:: 2.0.0
+    .. versionadded:: 2.0
     """
 
     name: str
-    _static_folder = None
-    _static_url_path = None
+    _static_folder: t.Optional[str] = None
+    _static_url_path: t.Optional[str] = None
 
     #: JSON encoder class used by :func:`flask.json.dumps`. If a
     #: blueprint sets this, it will be used instead of the app's value.
-    json_encoder = None
+    json_encoder: t.Optional[t.Type[JSONEncoder]] = None
 
     #: JSON decoder class used by :func:`flask.json.loads`. If a
     #: blueprint sets this, it will be used instead of the app's value.
-    json_decoder = None
+    json_decoder: t.Optional[t.Type[JSONDecoder]] = None
 
     def __init__(
         self,
-        import_name,
-        static_folder=None,
-        static_url_path=None,
-        template_folder=None,
-        root_path=None,
+        import_name: str,
+        static_folder: t.Optional[str] = None,
+        static_url_path: t.Optional[str] = None,
+        template_folder: t.Optional[str] = None,
+        root_path: t.Optional[str] = None,
     ):
         #: The name of the package or module that this object belongs
         #: to. Do not change this once it is set by the constructor.
@@ -110,7 +125,7 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.view_functions = {}
+        self.view_functions: t.Dict[str, t.Callable] = {}
 
         #: A data structure of registered error handlers, in the format
         #: ``{scope: {code: {class: handler}}}```. The ``scope`` key is
@@ -125,7 +140,10 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.error_handler_spec = defaultdict(lambda: defaultdict(dict))
+        self.error_handler_spec: t.Dict[
+            AppOrBlueprintKey,
+            t.Dict[t.Optional[int], t.Dict[t.Type[Exception], ErrorHandlerCallable]],
+        ] = defaultdict(lambda: defaultdict(dict))
 
         #: A data structure of functions to call at the beginning of
         #: each request, in the format ``{scope: [functions]}``. The
@@ -137,7 +155,9 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.before_request_funcs = defaultdict(list)
+        self.before_request_funcs: t.Dict[
+            AppOrBlueprintKey, t.List[BeforeRequestCallable]
+        ] = defaultdict(list)
 
         #: A data structure of functions to call at the end of each
         #: request, in the format ``{scope: [functions]}``. The
@@ -149,7 +169,9 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.after_request_funcs = defaultdict(list)
+        self.after_request_funcs: t.Dict[
+            AppOrBlueprintKey, t.List[AfterRequestCallable]
+        ] = defaultdict(list)
 
         #: A data structure of functions to call at the end of each
         #: request even if an exception is raised, in the format
@@ -162,7 +184,9 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.teardown_request_funcs = defaultdict(list)
+        self.teardown_request_funcs: t.Dict[
+            AppOrBlueprintKey, t.List[TeardownCallable]
+        ] = defaultdict(list)
 
         #: A data structure of functions to call to pass extra context
         #: values when rendering templates, in the format
@@ -175,9 +199,9 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.template_context_processors = defaultdict(
-            list, {None: [_default_template_ctx_processor]}
-        )
+        self.template_context_processors: t.Dict[
+            AppOrBlueprintKey, t.List[TemplateContextProcessorCallable]
+        ] = defaultdict(list, {None: [_default_template_ctx_processor]})
 
         #: A data structure of functions to call to modify the keyword
         #: arguments passed to the view function, in the format
@@ -190,7 +214,10 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.url_value_preprocessors = defaultdict(list)
+        self.url_value_preprocessors: t.Dict[
+            AppOrBlueprintKey,
+            t.List[URLValuePreprocessorCallable],
+        ] = defaultdict(list)
 
         #: A data structure of functions to call to modify the keyword
         #: arguments when generating URLs, in the format
@@ -203,31 +230,35 @@ class Scaffold:
         #:
         #: This data structure is internal. It should not be modified
         #: directly and its format may change at any time.
-        self.url_default_functions = defaultdict(list)
+        self.url_default_functions: t.Dict[
+            AppOrBlueprintKey, t.List[URLDefaultCallable]
+        ] = defaultdict(list)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{type(self).__name__} {self.name!r}>"
 
-    def _is_setup_finished(self):
+    def _is_setup_finished(self) -> bool:
         raise NotImplementedError
 
     @property
-    def static_folder(self):
+    def static_folder(self) -> t.Optional[str]:
         """The absolute path to the configured static folder. ``None``
         if no static folder is set.
         """
         if self._static_folder is not None:
             return os.path.join(self.root_path, self._static_folder)
+        else:
+            return None
 
     @static_folder.setter
-    def static_folder(self, value):
+    def static_folder(self, value: t.Optional[str]) -> None:
         if value is not None:
             value = os.fspath(value).rstrip(r"\/")
 
         self._static_folder = value
 
     @property
-    def has_static_folder(self):
+    def has_static_folder(self) -> bool:
         """``True`` if :attr:`static_folder` is set.
 
         .. versionadded:: 0.5
@@ -235,7 +266,7 @@ class Scaffold:
         return self.static_folder is not None
 
     @property
-    def static_url_path(self):
+    def static_url_path(self) -> t.Optional[str]:
         """The URL prefix that the static route will be accessible from.
 
         If it was not configured during init, it is derived from
@@ -248,14 +279,16 @@ class Scaffold:
             basename = os.path.basename(self.static_folder)
             return f"/{basename}".rstrip("/")
 
+        return None
+
     @static_url_path.setter
-    def static_url_path(self, value):
+    def static_url_path(self, value: t.Optional[str]) -> None:
         if value is not None:
             value = value.rstrip("/")
 
         self._static_url_path = value
 
-    def get_send_file_max_age(self, filename):
+    def get_send_file_max_age(self, filename: str) -> t.Optional[int]:
         """Used by :func:`send_file` to determine the ``max_age`` cache
         value for a given file path if it wasn't passed.
 
@@ -276,7 +309,7 @@ class Scaffold:
 
         return int(value.total_seconds())
 
-    def send_static_file(self, filename):
+    def send_static_file(self, filename: str) -> "Response":
         """The view function used to serve files from
         :attr:`static_folder`. A route is automatically registered for
         this view at :attr:`static_url_path` if :attr:`static_folder` is
@@ -290,10 +323,12 @@ class Scaffold:
         # send_file only knows to call get_send_file_max_age on the app,
         # call it here so it works for blueprints too.
         max_age = self.get_send_file_max_age(filename)
-        return send_from_directory(self.static_folder, filename, max_age=max_age)
+        return send_from_directory(
+            t.cast(str, self.static_folder), filename, max_age=max_age
+        )
 
     @locked_cached_property
-    def jinja_loader(self):
+    def jinja_loader(self) -> t.Optional[FileSystemLoader]:
         """The Jinja loader for this object's templates. By default this
         is a class :class:`jinja2.loaders.FileSystemLoader` to
         :attr:`template_folder` if it is set.
@@ -302,8 +337,10 @@ class Scaffold:
         """
         if self.template_folder is not None:
             return FileSystemLoader(os.path.join(self.root_path, self.template_folder))
+        else:
+            return None
 
-    def open_resource(self, resource, mode="rb"):
+    def open_resource(self, resource: str, mode: str = "rb") -> t.IO[t.AnyStr]:
         """Open a resource file relative to :attr:`root_path` for
         reading.
 
@@ -326,48 +363,48 @@ class Scaffold:
 
         return open(os.path.join(self.root_path, resource), mode)
 
-    def _method_route(self, method, rule, options):
+    def _method_route(self, method: str, rule: str, options: dict) -> t.Callable:
         if "methods" in options:
             raise TypeError("Use the 'route' decorator to use the 'methods' argument.")
 
         return self.route(rule, methods=[method], **options)
 
-    def get(self, rule, **options):
+    def get(self, rule: str, **options: t.Any) -> t.Callable:
         """Shortcut for :meth:`route` with ``methods=["GET"]``.
 
         .. versionadded:: 2.0
         """
         return self._method_route("GET", rule, options)
 
-    def post(self, rule, **options):
+    def post(self, rule: str, **options: t.Any) -> t.Callable:
         """Shortcut for :meth:`route` with ``methods=["POST"]``.
 
         .. versionadded:: 2.0
         """
         return self._method_route("POST", rule, options)
 
-    def put(self, rule, **options):
+    def put(self, rule: str, **options: t.Any) -> t.Callable:
         """Shortcut for :meth:`route` with ``methods=["PUT"]``.
 
         .. versionadded:: 2.0
         """
         return self._method_route("PUT", rule, options)
 
-    def delete(self, rule, **options):
+    def delete(self, rule: str, **options: t.Any) -> t.Callable:
         """Shortcut for :meth:`route` with ``methods=["DELETE"]``.
 
         .. versionadded:: 2.0
         """
         return self._method_route("DELETE", rule, options)
 
-    def patch(self, rule, **options):
+    def patch(self, rule: str, **options: t.Any) -> t.Callable:
         """Shortcut for :meth:`route` with ``methods=["PATCH"]``.
 
         .. versionadded:: 2.0
         """
         return self._method_route("PATCH", rule, options)
 
-    def route(self, rule, **options):
+    def route(self, rule: str, **options: t.Any) -> t.Callable:
         """Decorate a view function to register it with the given URL
         rule and options. Calls :meth:`add_url_rule`, which has more
         details about the implementation.
@@ -391,7 +428,7 @@ class Scaffold:
             :class:`~werkzeug.routing.Rule` object.
         """
 
-        def decorator(f):
+        def decorator(f: t.Callable) -> t.Callable:
             endpoint = options.pop("endpoint", None)
             self.add_url_rule(rule, endpoint, f, **options)
             return f
@@ -401,12 +438,12 @@ class Scaffold:
     @setupmethod
     def add_url_rule(
         self,
-        rule,
-        endpoint=None,
-        view_func=None,
-        provide_automatic_options=None,
-        **options,
-    ):
+        rule: str,
+        endpoint: t.Optional[str] = None,
+        view_func: t.Optional[t.Callable] = None,
+        provide_automatic_options: t.Optional[bool] = None,
+        **options: t.Any,
+    ) -> t.Callable:
         """Register a rule for routing incoming requests and building
         URLs. The :meth:`route` decorator is a shortcut to call this
         with the ``view_func`` argument. These are equivalent:
@@ -466,7 +503,7 @@ class Scaffold:
         """
         raise NotImplementedError
 
-    def endpoint(self, endpoint):
+    def endpoint(self, endpoint: str) -> t.Callable:
         """Decorate a view function to register it for the given
         endpoint. Used if a rule is added without a ``view_func`` with
         :meth:`add_url_rule`.
@@ -484,13 +521,13 @@ class Scaffold:
         """
 
         def decorator(f):
-            self.view_functions[endpoint] = self.ensure_sync(f)
+            self.view_functions[endpoint] = f
             return f
 
         return decorator
 
     @setupmethod
-    def before_request(self, f):
+    def before_request(self, f: BeforeRequestCallable) -> BeforeRequestCallable:
         """Register a function to run before each request.
 
         For example, this can be used to open a database connection, or
@@ -508,11 +545,11 @@ class Scaffold:
         return value from the view, and further request handling is
         stopped.
         """
-        self.before_request_funcs.setdefault(None, []).append(self.ensure_sync(f))
+        self.before_request_funcs.setdefault(None, []).append(f)
         return f
 
     @setupmethod
-    def after_request(self, f):
+    def after_request(self, f: AfterRequestCallable) -> AfterRequestCallable:
         """Register a function to run after each request to this object.
 
         The function is called with the response object, and must return
@@ -524,11 +561,11 @@ class Scaffold:
         should not be used for actions that must execute, such as to
         close resources. Use :meth:`teardown_request` for that.
         """
-        self.after_request_funcs.setdefault(None, []).append(self.ensure_sync(f))
+        self.after_request_funcs.setdefault(None, []).append(f)
         return f
 
     @setupmethod
-    def teardown_request(self, f):
+    def teardown_request(self, f: TeardownCallable) -> TeardownCallable:
         """Register a function to be run at the end of each request,
         regardless of whether there was an exception or not.  These functions
         are executed when the request context is popped, even if not an
@@ -563,17 +600,21 @@ class Scaffold:
            debugger can still access it.  This behavior can be controlled
            by the ``PRESERVE_CONTEXT_ON_EXCEPTION`` configuration variable.
         """
-        self.teardown_request_funcs.setdefault(None, []).append(self.ensure_sync(f))
+        self.teardown_request_funcs.setdefault(None, []).append(f)
         return f
 
     @setupmethod
-    def context_processor(self, f):
+    def context_processor(
+        self, f: TemplateContextProcessorCallable
+    ) -> TemplateContextProcessorCallable:
         """Registers a template context processor function."""
         self.template_context_processors[None].append(f)
         return f
 
     @setupmethod
-    def url_value_preprocessor(self, f):
+    def url_value_preprocessor(
+        self, f: URLValuePreprocessorCallable
+    ) -> URLValuePreprocessorCallable:
         """Register a URL value preprocessor function for all view
         functions in the application. These functions will be called before the
         :meth:`before_request` functions.
@@ -590,7 +631,7 @@ class Scaffold:
         return f
 
     @setupmethod
-    def url_defaults(self, f):
+    def url_defaults(self, f: URLDefaultCallable) -> URLDefaultCallable:
         """Callback function for URL defaults for all view functions of the
         application.  It's called with the endpoint and values and should
         update the values passed in place.
@@ -599,7 +640,9 @@ class Scaffold:
         return f
 
     @setupmethod
-    def errorhandler(self, code_or_exception):
+    def errorhandler(
+        self, code_or_exception: t.Union[t.Type[Exception], int]
+    ) -> t.Callable:
         """Register a function to handle errors by code or exception class.
 
         A decorator that is used to register a function given an
@@ -629,14 +672,18 @@ class Scaffold:
                                   an arbitrary exception
         """
 
-        def decorator(f):
+        def decorator(f: ErrorHandlerCallable) -> ErrorHandlerCallable:
             self.register_error_handler(code_or_exception, f)
             return f
 
         return decorator
 
     @setupmethod
-    def register_error_handler(self, code_or_exception, f):
+    def register_error_handler(
+        self,
+        code_or_exception: t.Union[t.Type[Exception], int],
+        f: ErrorHandlerCallable,
+    ) -> None:
         """Alternative error attach function to the :meth:`errorhandler`
         decorator that is more straightforward to use for non decorator
         usage.
@@ -659,10 +706,12 @@ class Scaffold:
                 " instead."
             )
 
-        self.error_handler_spec[None][code][exc_class] = self.ensure_sync(f)
+        self.error_handler_spec[None][code][exc_class] = f
 
     @staticmethod
-    def _get_exc_class_and_code(exc_class_or_code):
+    def _get_exc_class_and_code(
+        exc_class_or_code: t.Union[t.Type[Exception], int]
+    ) -> t.Tuple[t.Type[Exception], t.Optional[int]]:
         """Get the exception class being handled. For HTTP status codes
         or ``HTTPException`` subclasses, return both the exception and
         status code.
@@ -670,6 +719,7 @@ class Scaffold:
         :param exc_class_or_code: Any exception class, or an HTTP status
             code as an integer.
         """
+        exc_class: t.Type[Exception]
         if isinstance(exc_class_or_code, int):
             exc_class = default_exceptions[exc_class_or_code]
         else:
@@ -684,65 +734,13 @@ class Scaffold:
         else:
             return exc_class, None
 
-    def ensure_sync(self, func):
-        raise NotImplementedError()
 
-
-def _endpoint_from_view_func(view_func):
+def _endpoint_from_view_func(view_func: t.Callable) -> str:
     """Internal helper that returns the default endpoint for a given
     function.  This always is the function name.
     """
     assert view_func is not None, "expected view func if endpoint is not provided."
     return view_func.__name__
-
-
-def get_root_path(import_name):
-    """Find the root path of a package, or the path that contains a
-    module. If it cannot be found, returns the current working
-    directory.
-
-    Not to be confused with the value returned by :func:`find_package`.
-
-    :meta private:
-    """
-    # Module already imported and has a file attribute. Use that first.
-    mod = sys.modules.get(import_name)
-
-    if mod is not None and hasattr(mod, "__file__"):
-        return os.path.dirname(os.path.abspath(mod.__file__))
-
-    # Next attempt: check the loader.
-    loader = pkgutil.get_loader(import_name)
-
-    # Loader does not exist or we're referring to an unloaded main
-    # module or a main module without path (interactive sessions), go
-    # with the current working directory.
-    if loader is None or import_name == "__main__":
-        return os.getcwd()
-
-    if hasattr(loader, "get_filename"):
-        filepath = loader.get_filename(import_name)
-    else:
-        # Fall back to imports.
-        __import__(import_name)
-        mod = sys.modules[import_name]
-        filepath = getattr(mod, "__file__", None)
-
-        # If we don't have a file path it might be because it is a
-        # namespace package. In this case pick the root path from the
-        # first module that is contained in the package.
-        if filepath is None:
-            raise RuntimeError(
-                "No root path can be found for the provided module"
-                f" {import_name!r}. This can happen because the module"
-                " came from an import hook that does not provide file"
-                " name information or because it's a namespace package."
-                " In this case the root path needs to be explicitly"
-                " provided."
-            )
-
-    # filepath is import_name.py for a module, or __init__.py for a package.
-    return os.path.dirname(os.path.abspath(filepath))
 
 
 def _matching_loader_thinks_module_is_package(loader, mod_name):
@@ -822,7 +820,7 @@ def _find_package_path(root_mod_name):
     return package_path
 
 
-def find_package(import_name):
+def find_package(import_name: str):
     """Find the prefix that a package is installed under, and the path
     that it would be imported from.
 

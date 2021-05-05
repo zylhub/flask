@@ -6,7 +6,6 @@ import pytest
 from flask import Blueprint
 from flask import Flask
 from flask import request
-from flask.helpers import run_async
 
 pytest.importorskip("asgiref")
 
@@ -24,6 +23,7 @@ def _async_app():
     app = Flask(__name__)
 
     @app.route("/", methods=["GET", "POST"])
+    @app.route("/home", methods=["GET", "POST"])
     async def index():
         await asyncio.sleep(0)
         return request.method
@@ -57,7 +57,7 @@ def _async_app():
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires Python >= 3.7")
-@pytest.mark.parametrize("path", ["/", "/bp/"])
+@pytest.mark.parametrize("path", ["/", "/home", "/bp/"])
 def test_async_route(path, async_app):
     test_client = async_app.test_client()
     response = test_client.get(path)
@@ -135,5 +135,6 @@ def test_async_before_after_request():
 
 @pytest.mark.skipif(sys.version_info >= (3, 7), reason="should only raise Python < 3.7")
 def test_async_runtime_error():
+    app = Flask(__name__)
     with pytest.raises(RuntimeError):
-        run_async(None)
+        app.async_to_sync(None)

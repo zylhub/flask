@@ -6,6 +6,12 @@ Version 2.0.0
 Unreleased
 
 -   Drop support for Python 2 and 3.5.
+-   Bump minimum versions of other Pallets projects: Werkzeug >= 2,
+    Jinja2 >= 3, MarkupSafe >= 2, ItsDangerous >= 2, Click >= 8. Be sure
+    to check the change logs for each project. For better compatibility
+    with other applications (e.g. Celery) that still require Click 7,
+    there is no hard dependency on Click 8 yet, but using Click 7 will
+    trigger a DeprecationWarning and Flask 2.1 will depend on Click 8.
 -   JSON support no longer uses simplejson. To use another JSON module,
     override ``app.json_encoder`` and ``json_decoder``. :issue:`3555`
 -   The ``encoding`` option to JSON functions is deprecated. :pr:`3562`
@@ -69,6 +75,14 @@ Unreleased
     ``@app.route("/login", methods=["POST"])``. :pr:`3907`
 -   Support async views, error handlers, before and after request, and
     teardown functions. :pr:`3412`
+-   Support nesting blueprints. :issue:`593, 1548`, :pr:`3923`
+-   Set the default encoding to "UTF-8" when loading ``.env`` and
+    ``.flaskenv`` files to allow to use non-ASCII characters. :issue:`3931`
+-   ``flask shell`` sets up tab and history completion like the default
+    ``python`` shell if ``readline`` is installed. :issue:`3941`
+-   ``helpers.total_seconds()`` is deprecated. Use
+    ``timedelta.total_seconds()`` instead. :pr:`3962`
+-   Add type hinting. :pr:`3973`.
 
 
 Version 1.1.2

@@ -27,7 +27,7 @@ except ImportError:
 try:
     import ssl
 except ImportError:
-    ssl = None
+    ssl = None  # type: ignore
 
 
 class NoAppException(click.UsageError):
@@ -98,7 +98,7 @@ def call_factory(script_info, app_factory, args=None, kwargs=None):
     if "script_info" in sig.parameters:
         warnings.warn(
             "The 'script_info' argument is deprecated and will not be"
-            " passed to the app factory function in 2.1.",
+            " passed to the app factory function in Flask 2.1.",
             DeprecationWarning,
         )
         kwargs["script_info"] = script_info
@@ -110,7 +110,8 @@ def call_factory(script_info, app_factory, args=None, kwargs=None):
     ):
         warnings.warn(
             "Script info is deprecated and will not be passed as the"
-            " single argument to the app factory function in 2.1.",
+            " single argument to the app factory function in Flask"
+            " 2.1.",
             DeprecationWarning,
         )
         args.append(script_info)
@@ -859,7 +860,7 @@ def run_command(
 
 @click.command("shell", short_help="Run a shell in the app context.")
 @with_appcontext
-def shell_command():
+def shell_command() -> None:
     """Run an interactive Python shell in the context of a given
     Flask application.  The application will populate the default
     namespace of this shell according to its configuration.
@@ -876,7 +877,7 @@ def shell_command():
         f"App: {app.import_name} [{app.env}]\n"
         f"Instance: {app.instance_path}"
     )
-    ctx = {}
+    ctx: dict = {}
 
     # Support the regular Python interpreter startup script if someone
     # is using it.
@@ -886,6 +887,24 @@ def shell_command():
             eval(compile(f.read(), startup, "exec"), ctx)
 
     ctx.update(app.make_shell_context())
+
+    # Site, customize, or startup script can set a hook to call when
+    # entering interactive mode. The default one sets up readline with
+    # tab and history completion.
+    interactive_hook = getattr(sys, "__interactivehook__", None)
+
+    if interactive_hook is not None:
+        try:
+            import readline
+            from rlcompleter import Completer
+        except ImportError:
+            pass
+        else:
+            # rlcompleter uses __main__.__dict__ by default, which is
+            # flask.__main__. Use the shell context instead.
+            readline.set_completer(Completer(ctx).complete)
+
+        interactive_hook()
 
     code.interact(banner=banner, local=ctx)
 
@@ -903,7 +922,7 @@ def shell_command():
 )
 @click.option("--all-methods", is_flag=True, help="Show HEAD and OPTIONS methods.")
 @with_appcontext
-def routes_command(sort, all_methods):
+def routes_command(sort: str, all_methods: bool) -> None:
     """Show all registered routes with endpoints and methods."""
 
     rules = list(current_app.url_map.iter_rules())
@@ -916,9 +935,12 @@ def routes_command(sort, all_methods):
     if sort in ("endpoint", "rule"):
         rules = sorted(rules, key=attrgetter(sort))
     elif sort == "methods":
-        rules = sorted(rules, key=lambda rule: sorted(rule.methods))
+        rules = sorted(rules, key=lambda rule: sorted(rule.methods))  # type: ignore
 
-    rule_methods = [", ".join(sorted(rule.methods - ignored_methods)) for rule in rules]
+    rule_methods = [
+        ", ".join(sorted(rule.methods - ignored_methods))  # type: ignore
+        for rule in rules
+    ]
 
     headers = ("Endpoint", "Methods", "Rule")
     widths = (
@@ -956,7 +978,14 @@ debug mode.
 )
 
 
-def main():
+def main() -> None:
+    if int(click.__version__[0]) < 8:
+        warnings.warn(
+            "Using the `flask` cli with Click 7 is deprecated and"
+            " will not be supported starting with Flask 2.1."
+            " Please upgrade to Click 8 as soon as possible.",
+            DeprecationWarning,
+        )
     # TODO omit sys.argv once https://github.com/pallets/click/issues/536 is fixed
     cli.main(args=sys.argv[1:])
 

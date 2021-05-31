@@ -1,9 +1,67 @@
 .. currentmodule:: flask
 
-Version 2.0.0
+Version 2.1.0
 -------------
 
 Unreleased
+
+-   Update Click dependency to >= 8.0.
+
+
+Version 2.0.2
+-------------
+
+Unreleased
+
+-   Fix type annotation for ``teardown_request``. :issue:`4093`
+-   Fix type annotation for ``before_request`` and ``before_app_request``
+    decorators. :issue:`4104`
+-   Fixed the issue where typing requires template global
+    decorators to accept functions with no arguments. :issue:`4098`
+
+
+Version 2.0.1
+-------------
+
+Released 2021-05-21
+
+-   Re-add the ``filename`` parameter in ``send_from_directory``. The
+    ``filename`` parameter has been renamed to ``path``, the old name
+    is deprecated. :pr:`4019`
+-   Mark top-level names as exported so type checking understands
+    imports in user projects. :issue:`4024`
+-   Fix type annotation for ``g`` and inform mypy that it is a namespace
+    object that has arbitrary attributes. :issue:`4020`
+-   Fix some types that weren't available in Python 3.6.0. :issue:`4040`
+-   Improve typing for ``send_file``, ``send_from_directory``, and
+    ``get_send_file_max_age``. :issue:`4044`, :pr:`4026`
+-   Show an error when a blueprint name contains a dot. The ``.`` has
+    special meaning, it is used to separate (nested) blueprint names and
+    the endpoint name. :issue:`4041`
+-   Combine URL prefixes when nesting blueprints that were created with
+    a ``url_prefix`` value. :issue:`4037`
+-   Roll back a change to the order that URL matching was done. The
+    URL is again matched after the session is loaded, so the session is
+    available in custom URL converters. :issue:`4053`
+-   Re-add deprecated ``Config.from_json``, which was accidentally
+    removed early. :issue:`4078`
+-   Improve typing for some functions using ``Callable`` in their type
+    signatures, focusing on decorator factories. :issue:`4060`
+-   Nested blueprints are registered with their dotted name. This allows
+    different blueprints with the same name to be nested at different
+    locations. :issue:`4069`
+-   ``register_blueprint`` takes a ``name`` option to change the
+    (pre-dotted) name the blueprint is registered with. This allows the
+    same blueprint to be registered multiple times with unique names for
+    ``url_for``. Registering the same blueprint with the same name
+    multiple times is deprecated. :issue:`1091`
+-   Improve typing for ``stream_with_context``. :issue:`4052`
+
+
+Version 2.0.0
+-------------
+
+Released 2021-05-11
 
 -   Drop support for Python 2 and 3.5.
 -   Bump minimum versions of other Pallets projects: Werkzeug >= 2,
@@ -83,6 +141,26 @@ Unreleased
 -   ``helpers.total_seconds()`` is deprecated. Use
     ``timedelta.total_seconds()`` instead. :pr:`3962`
 -   Add type hinting. :pr:`3973`.
+
+
+Version 1.1.4
+-------------
+
+Released 2021-05-13
+
+-   Update ``static_folder`` to use ``_compat.fspath`` instead of
+    ``os.fspath`` to continue supporting Python < 3.6 :issue:`4050`
+
+
+Version 1.1.3
+-------------
+
+Released 2021-05-13
+
+-   Set maximum versions of Werkzeug, Jinja, Click, and ItsDangerous.
+    :issue:`4043`
+-   Re-add support for passing a ``pathlib.Path`` for ``static_folder``.
+    :pr:`3579`
 
 
 Version 1.1.2
